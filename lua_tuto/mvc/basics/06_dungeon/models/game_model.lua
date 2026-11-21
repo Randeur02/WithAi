@@ -18,6 +18,7 @@ local InventoryModel = require("models.inventory_model")
 local DungeonModel = require("models.dungeon_model")
 local QuestModel = require("models.quest_model")
 local LogModel = require("models.log_model")
+local KillListModel = require("models.kill_list_model")
 
 local GameModel = {}
 GameModel.__index = GameModel
@@ -28,6 +29,7 @@ function GameModel.new(data)
   self.bus = EventBus.new()
   self.log = LogModel.new(self.bus, data.logLimit)
   self.quests = QuestModel.new(self.bus, data.quests)
+  self.kills = KillListModel.new(self.bus)
   self.player = PlayerModel.new(data.player)
   self.inventory = InventoryModel.new(data.inventoryCapacity)
   self.dungeon = DungeonModel.new(data.rooms)

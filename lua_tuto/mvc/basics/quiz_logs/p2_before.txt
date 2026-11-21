@@ -1,0 +1,77 @@
+[0] 디커플링: Model/Controller 에 print·io·love 없음
+  ok   - models/event_bus.lua
+  ok   - models/player_model.lua
+  ok   - models/enemy_model.lua
+  ok   - models/inventory_model.lua
+  ok   - models/dungeon_model.lua
+  ok   - models/quest_model.lua
+  ok   - models/log_model.lua
+  ok   - models/game_model.lua
+  ok   - controllers/explore_controller.lua
+  ok   - controllers/battle_controller.lua
+  ok   - controllers/inventory_controller.lua
+  ok   - controllers/end_controller.lua
+  ok   - controllers/input_router.lua
+[1] 작은 Model 단독 테스트
+  ok   - EventBus: onAny 가 먼저, 그다음 on
+  ok   - QuestModel: GameModel 없이 이벤트만으로 진행
+  ok   - QuestModel: 완료 이벤트는 한 번만
+  ok   - LogModel: 최근 N개만 보관, 원본 type 저장
+  ok   - InventoryModel: 용량 초과 거부
+  ok   - InventoryModel: 없는 번호 거부
+  ok   - PlayerModel: 회복은 최대치까지, 실제 회복량 반환
+  ok   - PlayerModel: 장비 공격력 합산
+[2] GameModel 통합 규칙
+  ok   - 시작은 탐험 모드
+  ok   - 탐험 중 공격 불가
+  ok   - 적 방 → 전투 모드 + 적 생성
+  ok   - 전투 중 탐험 불가
+  ok   - 처치 → 탐험 복귀, 골드 획득
+  ok   - 처치 이벤트가 퀘스트로 전달
+  ok   - 로그에 원본 이벤트 기록
+  ok   - 출구 → 승리
+  ok   - 적이 살아 있으면 반격
+  ok   - 체력 0 → 게임 오버
+  ok   - 게임 오버 후 행동 불가
+  ok   - 도망: 한 대 맞고 탐험 복귀
+  ok   - 가방이 차면 아이템을 두고 옴
+  ok   - 전투 중 피해
+  ok   - 가방 열기 → inventory 모드, 복귀 모드 기억
+  ok   - 없는 번호 사용 거부
+  ok   - 전투 중 물약: 회복 후 적의 턴
+  ok   - 검 장착
+[3] View
+  ok   - EnemyView: 적이 없으면 nil(숨김)
+  ok   - EnemyView: 전투 중 이름/HP 표시
+  ok   - StatusView: 위치 표시
+  ok   - LogView: 원본 이벤트 → 문장
+  ok   - View 는 Model 을 바꾸지 않음
+  ok   - ScreenView: 모드별 레이아웃으로 위젯 합성
+  ok   - ScreenView: 알림 표시
+  ok   - ScreenView: 알림은 한 번만
+[4] Controller 라우팅
+  ok   - 탐험 모드 a → ExploreController 가 거부
+  ok   - n → 전투 진입 (공백 무시)
+  ok   - 전투 중 i → 가방
+  ok   - 가방에서 숫자 아님 → 알림
+  ok   - b → 전투로 복귀
+  ok   - 승리 모드 도달
+  ok   - 승리 후 아무 입력 → 종료
+  ok   - 입력마다 render 호출
+  ok   - q 는 어느 모드에서나 종료
+[5] 문제1: 아이템 2번 사용 퀘스트 (데이터만)
+  ok   - 데이터에 item_used 퀘스트(needed=2) 정의
+  ok   - 아이템 1번 사용 → 진행 1/2
+  ok   - 아이템 2번 사용 → 퀘스트 완료
+[6] 문제2: 처치한 적 목록 패널
+  FAIL - KillListModel 모듈 존재
+  FAIL - KillListView 모듈 존재
+  FAIL - models/kill_list_model.lua: print·io·love·models.game_model·models.player_model 없음
+  FAIL - KillListModel: enemy_killed 만 순서대로 기록
+  FAIL - KillListView: 처치 전 빈 목록 안내
+  FAIL - GameModel 이 처치 목록 소유 (game.kills)
+  FAIL - 처치한 적만 기록, 도망친 적 제외
+  FAIL - KillListView: 처치한 적 이름 표시
+  FAIL - KillListView: 위젯 규약(title)
+
+결과: 59 통과, 9 실패

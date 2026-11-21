@@ -17,6 +17,7 @@ local InventoryView = require("views.inventory_view")
 local QuestView = require("views.quest_view")
 local LogView = require("views.log_view")
 local CommandView = require("views.command_view")
+local KillListView = require("views.kill_list_view")
 
 local InputRouter = require("controllers.input_router")
 local ExploreController = require("controllers.explore_controller")
@@ -35,12 +36,13 @@ local widgets = {
   quest = QuestView.new(),
   log = LogView.new(),
   command = CommandView.new(),
+  kills = KillListView.new(),
 }
 local layouts = {
-  explore = { "status", "inventory", "quest", "log", "command" },
+  explore = { "status", "inventory", "quest", "kills", "log", "command" },
   battle = { "status", "enemy", "log", "command" },
   inventory = { "status", "enemy", "inventory", "command" },
-  default = { "status", "quest", "log", "command" },
+  default = { "status", "quest", "kills", "log", "command" },
 }
 local screen = ScreenView.new(print, widgets, layouts)
 

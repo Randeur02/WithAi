@@ -291,6 +291,75 @@ do
   check("아이템 2번 사용 → 퀘스트 완료", quest.done == true)
 end
 
+-- ── 새 파일용 공통 검사 ─────────────────────────────────────────────────────
+-- 아직 없는 모듈도 테스트 전체를 멈추지 않고 FAIL 로 보이게 한다.
+local function tryRequire(name)
+  local ok, mod = pcall(require, name)
+  return ok and mod or nil
+end
+
+-- 주석을 뺀 소스. 파일이 없으면 nil.
+local function sourceOf(path)
+  local file = io.open(root .. path, "r")
+  if not file then
+    return nil
+  end
+  local code = {}
+  for line in file:lines() do
+    code[#code + 1] = (line:gsub("%-%-.*$", ""))
+  end
+  file:close()
+  return table.concat(code, "\n")
+end
+
+-- print·io·love 와 추가 금지 문자열(extra)이 없어야 ok. 파일이 없으면 FAIL.
+local function checkClean(path, extra)
+  local code = sourceOf(path)
+  local clean = code ~= nil and not code:find("print%s*%(") and not code:find("io%.") and not code:find("love%.")
+  if code then
+    for _, text in ipairs(extra or {}) do
+      clean = clean and not code:find(text, 1, true)
+    end
+  end
+  local label = "print·io·love" .. (extra and ("·" .. table.concat(extra, "·")) or "")
+  check(path .. ": " .. label .. " 없음", clean)
+end
+
+-- ── 6. 문제2: 처치 목록 (KillListModel + KillListView) ──────────────────────
+print("[6] 문제2: 처치한 적 목록 패널")
+do
+  local KillListModel = tryRequire("models.kill_list_model")
+  local KillListView = tryRequire("views.kill_list_view")
+  check("KillListModel 모듈 존재", KillListModel ~= nil)
+  check("KillListView 모듈 존재", KillListView ~= nil)
+  checkClean("models/kill_list_model.lua", { "models.game_model", "models.player_model" })
+
+  -- Model 단독: GameModel 없이 버스 이벤트만으로 기록
+  local names = {}
+  if KillListModel then
+    local bus = EventBus.new()
+    names = KillListModel.new(bus).names
+    bus:emit("enemy_killed", { name = "쥐", gold = 2 })
+    bus:emit("fled", { name = "골렘" })
+    bus:emit("enemy_killed", { name = "박쥐", gold = 1 })
+  end
+  check("KillListModel: enemy_killed 만 순서대로 기록", #names == 2 and names[1] == "쥐" and names[2] == "박쥐")
+
+  -- GameModel 통합: 처치는 기록, 도망은 제외
+  local g = newGame({ WEAK, TOUGH, EXIT })
+  local view = KillListView and KillListView.new()
+  check("KillListView: 처치 전 빈 목록 안내", view ~= nil and contains(view:lines(g), "아직 없음"))
+  g:explore()
+  g:attack() -- 쥐 처치
+  g:explore()
+  g:flee() -- 골렘에게서 도망
+  local kills = g.kills
+  check("GameModel 이 처치 목록 소유 (game.kills)", kills ~= nil)
+  check("처치한 적만 기록, 도망친 적 제외", kills ~= nil and #kills.names == 1 and kills.names[1] == "쥐")
+  check("KillListView: 처치한 적 이름 표시", view ~= nil and contains(view:lines(g), "쥐"))
+  check("KillListView: 위젯 규약(title)", view ~= nil and type(view.title) == "string")
+end
+
 print(string.format("\n결과: %d 통과, %d 실패", passed, failed))
 if failed > 0 then
   os.exit(1)
