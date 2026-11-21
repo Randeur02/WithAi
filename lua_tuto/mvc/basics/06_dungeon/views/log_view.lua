@@ -36,6 +36,9 @@ local FORMAT = {
   quest_completed = function(d)
     return "★ 퀘스트 완료: " .. d.text
   end,
+  achievement_unlocked = function(d)
+    return "◆ 업적 달성: " .. d.text
+  end,
   player_died = function(d)
     return d.by .. " 에게 쓰러졌다..."
   end,

@@ -360,6 +360,71 @@ do
   check("KillListView: 위젯 규약(title)", view ~= nil and type(view.title) == "string")
 end
 
+-- ── 7. 문제3: 처치 골드 누적 업적 (Game·PlayerModel 의존 금지) ──────────────
+print("[7] 문제3: 처치 골드 누적 업적")
+do
+  local AchievementModel = tryRequire("models.achievement_model")
+  check("AchievementModel 모듈 존재", AchievementModel ~= nil)
+  checkClean("models/achievement_model.lua", { "models.game_model", "models.player_model" })
+
+  -- 기준값·문구는 데이터에 있어야 한다 (코드 하드코딩 금지)
+  local data = require("data.dungeon_data")
+  local def
+  for _, a in ipairs(data.achievements or {}) do
+    if a.gold == 15 then
+      def = a
+    end
+  end
+  check("데이터에 골드 15 업적 정의 (text 포함)", def ~= nil and type(def.text) == "string")
+
+  -- Model 단독: 버스의 enemy_killed 골드만 누적, 기준 도달 시 1회만 발행
+  local unlocked = {}
+  if AchievementModel then
+    local bus = EventBus.new()
+    bus:on("achievement_unlocked", function(d)
+      unlocked[#unlocked + 1] = d.text
+    end)
+    AchievementModel.new(bus, { { id = "rich", text = "부자", gold = 15 } })
+    bus:emit("enemy_killed", { name = "a", gold = 10 })
+    bus:emit("enemy_killed", { name = "b", gold = 4 })
+    check("누적 14: 아직 미달성", #unlocked == 0)
+    bus:emit("enemy_killed", { name = "c", gold = 1 })
+    check("누적 15(경계값): 달성 이벤트 + 데이터 문구 전달", #unlocked == 1 and unlocked[1] == "부자")
+    bus:emit("enemy_killed", { name = "d", gold = 20 })
+    check("달성 후 추가 처치: 다시 발행하지 않음", #unlocked == 1)
+  else
+    check("누적 14: 아직 미달성", false)
+    check("누적 15(경계값): 달성 이벤트 + 데이터 문구 전달", false)
+    check("달성 후 추가 처치: 다시 발행하지 않음", false)
+  end
+
+  -- GameModel 통합: 처치 → 업적 → 로그에 문장 1회
+  local g = GameModel.new({
+    player = { name = "테스터", maxHp = 10, attack = 5 },
+    inventoryCapacity = 2,
+    logLimit = 5,
+    rooms = { WEAK, WEAK, EXIT },
+    quests = {},
+    achievements = { { id = "rich", text = "쥐 사냥꾼", gold = 4 } },
+  })
+  g:explore()
+  g:attack()
+  local function countUnlocked()
+    local n = 0
+    for _, e in ipairs(g.log.entries) do
+      if e.type == "achievement_unlocked" then
+        n = n + 1
+      end
+    end
+    return n
+  end
+  check("골드 2: 로그에 업적 없음", countUnlocked() == 0)
+  g:explore()
+  g:attack()
+  check("골드 4: 로그에 업적 1회 기록", countUnlocked() == 1)
+  check("LogView: 업적 문장에 데이터 문구 표시", contains(LogView.new():lines(g), "업적 달성: 쥐 사냥꾼"))
+end
+
 print(string.format("\n결과: %d 통과, %d 실패", passed, failed))
 if failed > 0 then
   os.exit(1)

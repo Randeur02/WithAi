@@ -23,4 +23,9 @@ return {
     { id = "explorer", text = "방 7개 탐험", event = "room_entered", needed = 7 },
     { id = "user", text = "아이템 2번 사용", event = "item_used", needed = 2 },
   },
+
+  -- 업적: 처치로 얻은 골드 누적이 gold 이상이면 1회 달성. 기준을 바꾸려면 gold 와 text 만 고친다.
+  achievements = {
+    { id = "rich", text = "처치 골드 15 모으기", gold = 15 },
+  },
 }
