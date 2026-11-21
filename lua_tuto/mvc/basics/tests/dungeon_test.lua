@@ -2,6 +2,17 @@
 -- 예제 6(던전 RPG) 헤드리스 테스트: Model 단위 → Model 간 이벤트 연동 → View 문자열 → Controller 라우팅.
 -- 실행: lua lua_tuto/mvc/basics/tests/dungeon_test.lua   (luajit 도 가능)
 
+-- 규칙 검사(전역 변수 금지): 이후 require·실행되는 모든 코드에서
+-- 새 전역 변수를 만들거나 정의되지 않은 전역을 읽으면 즉시 오류로 멈춘다.
+setmetatable(_G, {
+  __newindex = function(_, name)
+    error("전역 변수 금지: " .. tostring(name), 2)
+  end,
+  __index = function(_, name)
+    error("정의되지 않은 전역 읽기: " .. tostring(name), 2)
+  end,
+})
+
 local here = (arg and arg[0] or ""):match("(.*[/\\])") or "./"
 local root = here .. "../06_dungeon/"
 package.path = root .. "?.lua;" .. package.path
@@ -247,6 +258,37 @@ do
   check("승리 후 아무 입력 → 종료", router:handle("x") == false)
   check("입력마다 render 호출", renders == 7)
   check("q 는 어느 모드에서나 종료", InputRouter.new(newGame({ EXIT }), fakeView, {}):handle("q") == false)
+end
+
+-- ── 5. 문제1: 데이터만으로 퀘스트 추가 ─────────────────────────────────────
+print("[5] 문제1: 아이템 2번 사용 퀘스트 (데이터만)")
+do
+  local data = require("data.dungeon_data")
+  local def
+  for _, q in ipairs(data.quests) do
+    if q.event == "item_used" then
+      def = q
+    end
+  end
+  check("데이터에 item_used 퀘스트(needed=2) 정의", def ~= nil and def.needed == 2)
+
+  -- 정의가 없어도 아래 검사가 FAIL 로 보이도록 빈 퀘스트로 대체한다.
+  local g = GameModel.new({
+    player = { name = "테스터", maxHp = 10, attack = 5 },
+    inventoryCapacity = 2,
+    logLimit = 3,
+    rooms = { POTION, POTION, EXIT },
+    quests = { def or { id = "none", text = "없음", event = "__none__", needed = 2 } },
+  })
+  local quest = g.quests.quests[1]
+  g:explore()
+  g:explore()
+  g:openInventory()
+  g:useItem(1)
+  check("아이템 1번 사용 → 진행 1/2", quest.progress == 1 and not quest.done)
+  g:openInventory()
+  g:useItem(1)
+  check("아이템 2번 사용 → 퀘스트 완료", quest.done == true)
 end
 
 print(string.format("\n결과: %d 통과, %d 실패", passed, failed))

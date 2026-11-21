@@ -21,5 +21,6 @@ return {
     { id = "hunter", text = "몬스터 3마리 처치", event = "enemy_killed", needed = 3 },
     { id = "collector", text = "아이템 2개 줍기", event = "item_picked", needed = 2 },
     { id = "explorer", text = "방 7개 탐험", event = "room_entered", needed = 7 },
+    { id = "user", text = "아이템 2번 사용", event = "item_used", needed = 2 },
   },
 }
