@@ -39,8 +39,10 @@ function PlayerModel:addGold(amount)
   self.gold = self.gold + amount
 end
 
--- 상점 구매용. 잔액 검사는 호출하는 쪽(GameModel:buy)이 먼저 한다.
+-- 상점 구매용. 사용자에게 보일 실패 이유는 GameModel:buy 가 먼저 검사해 돌려주고,
+-- 여기서는 골드가 음수가 되는 잘못된 호출을 막는 마지막 방어선만 둔다.
 function PlayerModel:spendGold(amount)
+  assert(amount <= self.gold, string.format("골드 부족: 보유 %d, 차감 %d", self.gold, amount))
   self.gold = self.gold - amount
 end
 

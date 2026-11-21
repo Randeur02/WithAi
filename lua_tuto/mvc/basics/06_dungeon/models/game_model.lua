@@ -25,8 +25,19 @@ local AchievementModel = require("models.achievement_model")
 local GameModel = {}
 GameModel.__index = GameModel
 
+-- 상점 방 데이터는 게임 도중이 아니라 시작 시점에 검사한다 (잘못된 데이터는 즉시 실패).
+local function validateShopRooms(rooms)
+  for i, room in ipairs(rooms or {}) do
+    if room.kind == "shop" then
+      assert(type(room.price) == "number" and room.price > 0, i .. "번 상점 방: price 는 양수여야 합니다")
+      assert(type(room.item) == "table", i .. "번 상점 방: item 이 필요합니다")
+    end
+  end
+end
+
 -- data: { player = {...}, rooms = {...}, quests = {...}, inventoryCapacity, logLimit }
 function GameModel.new(data)
+  validateShopRooms(data.rooms)
   local self = setmetatable({}, GameModel)
   self.bus = EventBus.new()
   self.log = LogModel.new(self.bus, data.logLimit)
@@ -41,6 +52,8 @@ function GameModel.new(data)
   self.returnMode = nil
   self.shop = nil -- 상점 모드일 때 현재 상점 방 데이터
   -- 상점 방 진입: explore() 를 고치지 않고, explore() 가 발행하는 room_entered 를 구독한다.
+  -- 주의(순서 의존): explore() 가 dungeon:advance() 뒤에 room_entered 를 발행하고, 이후 분기에서
+  -- "shop" 방의 mode 를 건드리지 않는다는 전제에 기댄다. explore() 에 shop 분기를 추가하지 말 것.
   self.bus:on("room_entered", function()
     self:enterShopIfAny()
   end)

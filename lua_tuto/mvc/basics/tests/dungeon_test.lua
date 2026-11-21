@@ -524,6 +524,60 @@ do
   check("shop 모드에서 l → 탐험 복귀", wasShop and g.mode == "explore")
 end
 
+-- ── 9. 코드 리뷰 반영 ───────────────────────────────────────────────────────
+print("[9] 코드 리뷰 반영: 방어 검증 + 빠진 경우")
+do
+  -- M3: spendGold 잔액 검사 (잔액 초과 차감은 오류, 골드는 그대로)
+  local p = PlayerModel.new({ maxHp = 10, attack = 1 })
+  p:addGold(3)
+  local spentOk = pcall(p.spendGold, p, 5)
+  check("spendGold: 잔액 초과면 오류, 골드 그대로", spentOk == false and p.gold == 3)
+
+  -- M3: 상점 가격 데이터 검증은 게임 시작(GameModel.new) 시점에
+  local function newShopGame(price)
+    return pcall(GameModel.new, {
+      player = { name = "테스터", maxHp = 10, attack = 5 },
+      inventoryCapacity = 2,
+      rooms = { { kind = "shop", item = SHOP.item, price = price }, EXIT },
+      quests = {},
+    })
+  end
+  local okZero, errZero = newShopGame(0)
+  local okText = newShopGame("5")
+  check("상점 가격 0 → 시작 시 오류", okZero == false and tostring(errZero):find("price", 1, true) ~= nil)
+  check("상점 가격 문자열 → 시작 시 오류", okText == false)
+  check("상점 가격 정상(5) → 생성 성공", (newShopGame(5)))
+
+  -- L1: 구매 실패 시 item_bought 미발행
+  local g = newGame({ SHOP, EXIT })
+  local bought = 0
+  g.bus:on("item_bought", function()
+    bought = bought + 1
+  end)
+  g:explore()
+  if g.buy then
+    g:buy() -- 골드 0 → 실패
+  end
+  check("구매 실패 시 item_bought 미발행", g.mode == "shop" and bought == 0)
+
+  -- L1: 상점 밖 leaveShop 거부
+  local outside = newGame({ WEAK, EXIT })
+  check("상점 밖에서 leaveShop 거부", outside.leaveShop ~= nil and outside:leaveShop() == false and outside.mode == "explore")
+
+  -- L1: 한 번의 처치로 기준을 크게 넘어도 업적은 1회
+  local AchievementModel = tryRequire("models.achievement_model")
+  local unlocked = 0
+  if AchievementModel then
+    local bus = EventBus.new()
+    bus:on("achievement_unlocked", function()
+      unlocked = unlocked + 1
+    end)
+    AchievementModel.new(bus, { { id = "rich", text = "부자", gold = 15 } })
+    bus:emit("enemy_killed", { name = "용", gold = 100 })
+  end
+  check("한 번 처치로 기준 초과해도 업적 1회", unlocked == 1)
+end
+
 print(string.format("\n결과: %d 통과, %d 실패", passed, failed))
 if failed > 0 then
   os.exit(1)
