@@ -425,6 +425,105 @@ do
   check("LogView: 업적 문장에 데이터 문구 표시", contains(LogView.new():lines(g), "업적 달성: 쥐 사냥꾼"))
 end
 
+-- ── 8. 문제4: 상점 방 + ShopController ─────────────────────────────────────
+print("[8] 문제4: 상점 방 + ShopController")
+local SHOP = { kind = "shop", item = { name = "물약", kind = "potion", power = 5 }, price = 5 }
+local ShopController = tryRequire("controllers.shop_controller")
+local ShopView = tryRequire("views.shop_view")
+do
+  local CommandView = require("views.command_view")
+  check("ShopController 모듈 존재", ShopController ~= nil)
+  check("ShopView 모듈 존재", ShopView ~= nil)
+  checkClean("controllers/shop_controller.lua")
+
+  -- 실제 데이터: 출구 직전 상점(물약 5골드), 탐험 퀘스트 = 방 수
+  local data = require("data.dungeon_data")
+  local rooms = data.rooms
+  local shopRoom = rooms[#rooms - 1]
+  check(
+    "데이터: 출구 직전 방이 상점(물약, 5골드)",
+    rooms[#rooms].kind == "exit"
+      and shopRoom.kind == "shop"
+      and shopRoom.price == 5
+      and shopRoom.item ~= nil
+      and shopRoom.item.kind == "potion"
+  )
+  local explorer
+  for _, q in ipairs(data.quests) do
+    if q.id == "explorer" then
+      explorer = q
+    end
+  end
+  check("데이터: 탐험 퀘스트 needed 가 방 수와 일치", explorer ~= nil and explorer.needed == #rooms)
+
+  local p = PlayerModel.new({ maxHp = 10, attack = 1 })
+  p:addGold(7)
+  if p.spendGold then
+    p:spendGold(5)
+  end
+  check("PlayerModel:spendGold 골드 차감 (새 메서드)", p.gold == 2)
+
+  local g = newGame({ SHOP, EXIT }) -- 가방 용량 2
+  local function buy()
+    if g.buy then
+      return g:buy()
+    end
+    return nil, ""
+  end
+  g:explore()
+  check("상점 방 진입 → shop 모드", g.mode == "shop")
+  check("상점에서 탐험·공격 불가", g:explore() == false and g:attack() == false)
+
+  local ok, reason = buy()
+  check("골드 부족 → 실패 + 이유", ok == false and reason:find("골드가 부족", 1, true) ~= nil)
+  check("골드 부족 실패 시 골드·가방 그대로", g.player.gold == 0 and #g.inventory.items == 0)
+
+  g.player:addGold(12)
+  buy()
+  check("구매 성공 → 골드 -5, 가방 +1", g.player.gold == 7 and #g.inventory.items == 1 and g.inventory.items[1].name == "물약")
+  check("구매 기록이 로그에", g.log.entries[#g.log.entries].type == "item_bought")
+  buy() -- 골드 2, 가방 2/2
+  g.player:addGold(10) -- 골드 12
+  ok, reason = buy()
+  check("가방 가득 → 실패 + 이유", ok == false and reason:find("가득", 1, true) ~= nil)
+  check("가방 가득 실패 시 골드·가방 그대로", g.player.gold == 12 and #g.inventory.items == 2)
+
+  local shopLines = ShopView and ShopView.new():lines(g)
+  check("ShopView: 상품·가격을 데이터에서 표시", contains(shopLines, "물약") and contains(shopLines, "5골드"))
+  local commandLines = CommandView.new():lines(g)
+  check("CommandView: 상점 조작 안내", contains(commandLines, "구매") and contains(commandLines, "나가기"))
+
+  local left = g.leaveShop and g:leaveShop()
+  check("나가기 → 탐험 복귀", left == true and g.mode == "explore")
+  check("나간 뒤 ShopView 숨김(nil)", ShopView ~= nil and ShopView.new():lines(g) == nil)
+  g:explore()
+  check("상점 다음 출구 → 승리", g.mode == "victory")
+end
+
+-- 라우터 경유: b / l 키 해석과 실패 이유 알림
+do
+  local notices = {}
+  local fakeView = {
+    showNotice = function(_, msg)
+      notices[#notices + 1] = msg
+    end,
+    render = function() end,
+  }
+  local g = newGame({ SHOP, EXIT })
+  local router = InputRouter.new(g, fakeView, {
+    explore = ExploreController.new(),
+    shop = ShopController and ShopController.new(),
+  })
+  router:handle("n")
+  local wasShop = g.mode == "shop"
+  router:handle("x")
+  check("상점에서 다른 키 → 안내 알림", (notices[#notices] or ""):find("b / l", 1, true) ~= nil)
+  router:handle("b")
+  check("b 실패 → 골드 부족 이유 알림", (notices[#notices] or ""):find("골드가 부족", 1, true) ~= nil)
+  router:handle("l")
+  check("shop 모드에서 l → 탐험 복귀", wasShop and g.mode == "explore")
+end
+
 print(string.format("\n결과: %d 통과, %d 실패", passed, failed))
 if failed > 0 then
   os.exit(1)

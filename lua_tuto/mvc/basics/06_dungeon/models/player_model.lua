@@ -39,6 +39,11 @@ function PlayerModel:addGold(amount)
   self.gold = self.gold + amount
 end
 
+-- 상점 구매용. 잔액 검사는 호출하는 쪽(GameModel:buy)이 먼저 한다.
+function PlayerModel:spendGold(amount)
+  self.gold = self.gold - amount
+end
+
 function PlayerModel:isDead()
   return self.hp <= 0
 end

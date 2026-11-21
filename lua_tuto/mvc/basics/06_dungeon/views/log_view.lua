@@ -39,6 +39,15 @@ local FORMAT = {
   achievement_unlocked = function(d)
     return "◆ 업적 달성: " .. d.text
   end,
+  shop_entered = function(d)
+    return string.format("상점에 들어섰다. (%s %d골드)", d.name, d.price)
+  end,
+  item_bought = function(d)
+    return string.format("%s 구매 (-%d골드)", d.name, d.price)
+  end,
+  shop_left = function()
+    return "상점을 나섰다."
+  end,
   player_died = function(d)
     return d.by .. " 에게 쓰러졌다..."
   end,

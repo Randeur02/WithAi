@@ -18,12 +18,14 @@ local QuestView = require("views.quest_view")
 local LogView = require("views.log_view")
 local CommandView = require("views.command_view")
 local KillListView = require("views.kill_list_view")
+local ShopView = require("views.shop_view")
 
 local InputRouter = require("controllers.input_router")
 local ExploreController = require("controllers.explore_controller")
 local BattleController = require("controllers.battle_controller")
 local InventoryController = require("controllers.inventory_controller")
 local EndController = require("controllers.end_controller")
+local ShopController = require("controllers.shop_controller")
 
 -- ── Model ──
 local game = GameModel.new(data)
@@ -37,11 +39,13 @@ local widgets = {
   log = LogView.new(),
   command = CommandView.new(),
   kills = KillListView.new(),
+  shop = ShopView.new(),
 }
 local layouts = {
   explore = { "status", "inventory", "quest", "kills", "log", "command" },
   battle = { "status", "enemy", "log", "command" },
   inventory = { "status", "enemy", "inventory", "command" },
+  shop = { "status", "shop", "inventory", "log", "command" },
   default = { "status", "quest", "kills", "log", "command" },
 }
 local screen = ScreenView.new(print, widgets, layouts)
@@ -52,6 +56,7 @@ local router = InputRouter.new(game, screen, {
   explore = ExploreController.new(),
   battle = BattleController.new(),
   inventory = InventoryController.new(),
+  shop = ShopController.new(),
   gameover = endController,
   victory = endController,
 })
@@ -65,6 +70,7 @@ local script = {
   "n", "i", "1", -- 철검 장착
   "n", "x", "a", "a", "a", "a", -- 오크
   "n", "r", -- 박쥐 떼에게서 도망
+  "n", "b", "b", "b", "b", "l", -- 상점: 물약 3개 구매(18→3골드), 4번째는 골드 부족
   "n", -- 출구
   "q",
 }

@@ -9,6 +9,7 @@
 --              └─ LogModel    ◀─┘ (GameModel 은 emit 만 한다)
 --
 -- mode: "explore" | "battle" | "inventory" | "gameover" | "victory"
+--       + "shop" (문제4: 상점 방에서 buy / leaveShop)
 -- 모든 행동 메서드는 성공하면 true, 실패하면 false, 이유 를 돌려준다.
 
 local EventBus = require("models.event_bus")
@@ -38,6 +39,11 @@ function GameModel.new(data)
   self.enemy = nil
   self.mode = "explore"
   self.returnMode = nil
+  self.shop = nil -- 상점 모드일 때 현재 상점 방 데이터
+  -- 상점 방 진입: explore() 를 고치지 않고, explore() 가 발행하는 room_entered 를 구독한다.
+  self.bus:on("room_entered", function()
+    self:enterShopIfAny()
+  end)
   return self
 end
 
@@ -176,6 +182,50 @@ function GameModel:useItem(index)
   if self.mode == "battle" then
     self:enemyTurn()
   end
+  return true
+end
+
+-- ── 상점 (문제4: 기존 메서드는 고치지 않고 새 메서드만 추가) ────────────────
+-- 생성자에서 구독한 "room_entered" 가 호출한다. explore() 가 방을 옮긴 직후라
+-- dungeon.index 는 이미 새 방을 가리킨다. 상점 방이면 shop 모드로 바꾼다.
+function GameModel:enterShopIfAny()
+  local room = self.dungeon.rooms[self.dungeon.index]
+  if not room or room.kind ~= "shop" then
+    return
+  end
+  self.shop = room
+  self.mode = "shop"
+  self.bus:emit("shop_entered", { name = room.item.name, price = room.price })
+end
+
+-- 실패 시 골드·가방은 그대로 두고 false, 이유 를 돌려준다.
+function GameModel:buy()
+  local ok, err = requireMode(self, "shop")
+  if not ok then
+    return false, err
+  end
+
+  local shop, player = self.shop, self.player
+  if player.gold < shop.price then
+    return false, string.format("골드가 부족합니다 (필요 %d, 보유 %d)", shop.price, player.gold)
+  end
+  local added, reason = self.inventory:add(shop.item)
+  if not added then
+    return false, reason
+  end
+  player:spendGold(shop.price)
+  self.bus:emit("item_bought", { name = shop.item.name, price = shop.price })
+  return true
+end
+
+function GameModel:leaveShop()
+  local ok, err = requireMode(self, "shop")
+  if not ok then
+    return false, err
+  end
+  self.shop = nil
+  self.mode = "explore"
+  self.bus:emit("shop_left", {})
   return true
 end
 
